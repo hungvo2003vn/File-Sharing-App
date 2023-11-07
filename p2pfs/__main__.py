@@ -28,7 +28,7 @@ def main():
         terminal = TrackerTerminal(obj)
     elif results.option[0] == 'peer':
         obj = Peer()
-        loop.run_until_complete(obj.start(('localhost', 0)))
+        loop.run_until_complete(obj.start(('127.0.0.1', 0)))
         terminal = PeerTerminal(obj)
     else:
         logging.error('Option must either be \'tracker\' or \'peer\'')

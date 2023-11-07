@@ -11,7 +11,7 @@ class Tracker(MessageServer):
         super().__init__()
         # {writer -> address}
         self._peers = {}
-        # {filename -> fileinfo(size, total_chunknum)}
+        # {filename -> fileinfo(size, total_chunknum, author_address, local_file)}
         self._file_list = {}
         # {filename -> {(address) -> chunknum}}
         self._chunkinfo = {}
@@ -27,6 +27,10 @@ class Tracker(MessageServer):
 
     def address(self):
         return self._server_address
+    
+    # def ping(self, hostname):
+
+
 
     def _reset(self):
         self._peers = {}

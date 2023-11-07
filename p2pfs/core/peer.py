@@ -348,7 +348,9 @@ class Peer(MessageServer):
                 'filename': remote_name,
                 'fileinfo': {
                     'size': os.stat(local_file).st_size,
-                    'total_chunknum': math.ceil(os.stat(local_file).st_size / Peer._CHUNK_SIZE)
+                    'total_chunknum': math.ceil(os.stat(local_file).st_size / Peer._CHUNK_SIZE),
+                    'author_address': self._server_address,
+                    'local_file': local_file
                 },
             })
             message = await read_message(self._tracker_reader)
