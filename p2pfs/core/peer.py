@@ -73,15 +73,18 @@ class DownloadManager:
         await write_message(self._tracker_writer, {
             'type': MessageType.REQUEST_FILE_LOCATION,
             'filename': self._filename
+            'primary_key': 
         })
 
         message = await read_message(self._tracker_reader)
         assert MessageType(message['type']) == MessageType.REPLY_FILE_LOCATION
         fileinfo, chunkinfo = message['fileinfo'], message['chunkinfo']
         logger.debug('{}: {} ==> {}'.format(self._filename, fileinfo, chunkinfo))
+
         # cancel out self registration
         if json.dumps(self._server_address) in chunkinfo:
             del chunkinfo[json.dumps(self._server_address)]
+
         return fileinfo, chunkinfo
 
     async def update_chunkinfo(self, exclude=None):
@@ -118,6 +121,7 @@ class DownloadManager:
         else:
             # reset the chunk info
             self._file_chunk_info = {chunknum: set() for chunknum in self._file_chunk_info.keys()}
+
         # chunkinfo: {address -> possessed_chunks}
         for address, possessed_chunks in chunkinfo.items():
             if address == exclude:
@@ -263,6 +267,7 @@ class Peer(MessageServer):
         self._tracker_reader, self._tracker_writer = None, None
 
         # (remote filename) <-> (local filename)
+        # (local filename) <-> (remote filename)
         self._file_map = {}
 
         self._pending_publish = set()
@@ -333,20 +338,24 @@ class Peer(MessageServer):
             raise FileNotFoundError()
 
         remote_name = os.path.split(local_file)[1] if remote_name is None else remote_name
+        primary_key = [local_file, self._server_address]
 
-        if remote_name in self._pending_publish:
+        if primary_key in self._pending_publish:
             raise InProgressError()
 
         if not await self.is_connected():
             raise TrackerNotConnectedError()
+        
+        self._pending_publish.add(local_file)
 
-        self._pending_publish.add(remote_name)
         try:
             # send out the request packet
             await write_message(self._tracker_writer, {
                 'type': MessageType.REQUEST_PUBLISH,
-                'filename': remote_name,
+                # 'filename': remote_name,
+                'primary_key': primary_key,
                 'fileinfo': {
+                    'filename': remote_name,
                     'size': os.stat(local_file).st_size,
                     'total_chunknum': math.ceil(os.stat(local_file).st_size / Peer._CHUNK_SIZE),
                     'author_address': self._server_address,
@@ -358,8 +367,10 @@ class Peer(MessageServer):
             is_success = message['result']
 
             if is_success:
-                self._file_map[remote_name] = local_file
+                # self._file_map[remote_name] = local_file
+                self._file_map[local_file] = remote_name
                 logger.info('File {} published on server with name {}'.format(local_file, remote_name))
+
             else:
                 logger.info('File {} failed to publish, {}'.format(local_file, message))
                 raise FileExistsError()
@@ -367,7 +378,8 @@ class Peer(MessageServer):
             logger.warning('Error occured during communications with tracker.')
             raise
         finally:
-            self._pending_publish.remove(remote_name)
+            # self._pending_publish.remove(remote_name)
+            self._pending_publish.remove(local_file)
 
     async def list_file(self):
         if not await self.is_connected():
@@ -379,6 +391,27 @@ class Peer(MessageServer):
             message = await read_message(self._tracker_reader)
             assert MessageType(message['type']) == MessageType.REPLY_FILE_LIST
             return message['file_list']
+        except (asyncio.IncompleteReadError, ConnectionError, RuntimeError):
+            logger.warning('Error occured during communications with tracker.')
+            if not self._tracker_writer.is_closing():
+                self._tracker_writer.close()
+                await self._tracker_writer.wait_closed()
+            raise
+    
+    async def discover(self, peer_address):
+
+        if not await self.is_connected():
+            raise TrackerNotConnectedError()
+        try:
+            await write_message(self._tracker_writer, {
+                'type': MessageType.REQUEST_DISCOVER,
+                'address': peer_address
+            })
+
+            message = await read_message(self._tracker_reader)
+            assert MessageType(message['type']) == MessageType.REPLY_DISCOVER
+            return message['file_list']
+        
         except (asyncio.IncompleteReadError, ConnectionError, RuntimeError):
             logger.warning('Error occured during communications with tracker.')
             if not self._tracker_writer.is_closing():
@@ -420,22 +453,30 @@ class Peer(MessageServer):
         return
 
     async def _process_connection(self, reader, writer):
+
         assert isinstance(reader, asyncio.StreamReader) and isinstance(writer, asyncio.StreamWriter)
         while not reader.at_eof():
             # peer's server is stateless, no need to worry about peer disconnection
             # that's the problem of the other side
             try:
                 message = await read_message(reader)
+
                 # artificial delay for peer
                 if self._delay != 0:
                     await asyncio.sleep(self._delay)
+
                 message_type = MessageType(message['type'])
+
                 if message_type == MessageType.PEER_REQUEST_CHUNK:
+
                     assert message['filename'] in self._file_map, 'File {} requested does not exist'.format(message['filename'])
                     local_file = self._file_map[message['filename']]
+
                     with open(local_file, 'rb') as f:
+
                         f.seek(message['chunknum'] * Peer._CHUNK_SIZE, 0)
                         raw_data = f.read(Peer._CHUNK_SIZE)
+
                     await write_message(writer, {
                         'type': MessageType.PEER_REPLY_CHUNK,
                         'filename': message['filename'],
@@ -443,9 +484,11 @@ class Peer(MessageServer):
                         'data': raw_data,
                         'digest': Peer._HASH_FUNC(raw_data).hexdigest()
                     })
+
                 elif message_type == MessageType.PEER_PING_PONG:
                     await write_message(writer, message)
                 else:
                     logger.error('Undefined message: {}'.format(message))
+
             except (asyncio.IncompleteReadError, ConnectionError, RuntimeError):
                 break

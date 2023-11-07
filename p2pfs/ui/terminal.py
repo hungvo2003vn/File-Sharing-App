@@ -44,10 +44,33 @@ class TrackerTerminal(aiocmd.Cmd):
             if len(table.columns) == 0:
                 table.columns.header = ['Filename'] + list(map(lambda x: x.capitalize(), tuple(fileinfo.keys())))
             table.rows.append((filename, ) + tuple(fileinfo.values()))
+
         _, std_writer = await get_standard_streams()
         std_writer.write(str(table).encode('utf-8'))
         std_writer.write('\n'.encode('utf-8'))
         await std_writer.drain()
+    
+    async def do_discover(self, arg):
+        
+        arg = arg.split(' ')
+        if len(arg) < 2:
+            print('More arguments required! Usage: discover <address> <port>')
+        else:
+            
+            file_list_dict = await self._tracker.discover((arg[0], int(arg[1])))
+            table = BeautifulTable()
+            table.rows.separator = ''
+
+            for filename, fileinfo in file_list_dict.items():
+                if len(table.columns) == 0:
+                    table.columns.header = ['Filename'] + list(map(lambda x: x.capitalize(), tuple(fileinfo.keys())))
+                table.rows.append((filename,) + tuple(fileinfo.values()))
+        
+        _, std_writer = await get_standard_streams()
+        std_writer.write(str(table).encode('utf-8'))
+        std_writer.write('\n'.encode('utf-8'))
+        await std_writer.drain()
+
 
     async def do_list_peers(self, arg):
         table = BeautifulTable()
@@ -126,6 +149,28 @@ class PeerTerminal(aiocmd.Cmd):
     async def do_list_files(self, arg):
         try:
             file_list_dict = await self._peer.list_file()
+        except TrackerNotConnectedError:
+            print('Tracker is not connected, try \'connect <tracker_ip> <tracker_port>\' to connect.')
+        except (ConnectionError, RuntimeError, IncompleteReadError):
+            print('Error occured during communications with tracker, '
+                  'try \'connect <tracker_ip> <tracker_port>\' to re-connect.')
+        else:
+            table = BeautifulTable()
+            table.rows.separator = ''
+
+            for filename, fileinfo in file_list_dict.items():
+                if len(table.columns) == 0:
+                    table.columns.header = ['Filename'] + list(map(lambda x: x.capitalize(), tuple(fileinfo.keys())))
+                table.rows.append((filename,) + tuple(fileinfo.values()))
+            print(table)
+    
+    async def do_discover(self, arg):
+
+        arg = arg.split(' ')
+        if len(arg) < 2:
+            print('More arguments required! Usage: discover <address> <port>')
+        try:
+            file_list_dict = await self._peer.discover((arg[0], int(arg[1])))
         except TrackerNotConnectedError:
             print('Tracker is not connected, try \'connect <tracker_ip> <tracker_port>\' to connect.')
         except (ConnectionError, RuntimeError, IncompleteReadError):

@@ -8,17 +8,23 @@ logger = logging.getLogger(__name__)
 
 
 class MessageType(Enum):
+
     REQUEST_REGISTER = auto()
     REQUEST_PUBLISH = auto()
     REQUEST_FILE_LIST = auto()
     REQUEST_FILE_LOCATION = auto()
+    REQUEST_DISCOVER = auto()
     REQUEST_CHUNK_REGISTER = auto()
+
     REPLY_REGISTER = auto()
     REPLY_FILE_LIST = auto()
     REPLY_PUBLISH = auto()
     REPLY_FILE_LOCATION = auto()
+    REPLY_DISCOVER = auto()
+
     PEER_REQUEST_CHUNK = auto()
     PEER_REPLY_CHUNK = auto()
+
     PEER_PING_PONG = auto()
 
 
