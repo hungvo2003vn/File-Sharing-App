@@ -11,9 +11,9 @@ class Tracker(MessageServer):
         super().__init__()
         # {writer -> address}
         self._peers = {}
-        # {filename -> fileinfo(size, total_chunknum, author_address, local_file)}
+        # {primary_key -> fileinfo(size, total_chunknum, author_address, local_file, filename)}
         self._file_list = {}
-        # {filename -> {(address) -> chunknum}}
+        # {primary_key -> {(address) -> chunknum}}  :(primary_key = filename + address)
         self._chunkinfo = {}
 
     def file_list(self):
@@ -119,6 +119,7 @@ class Tracker(MessageServer):
                     })
 
                 elif message_type == MessageType.REQUEST_CHUNK_REGISTER:
+                    
                     peer_address = self._peers[writer]
 
                     if message['primary_key'] not in self._chunkinfo:

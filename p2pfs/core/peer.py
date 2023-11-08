@@ -12,11 +12,12 @@ logger = logging.getLogger(__name__)
 
 
 class DownloadManager:
-    def __init__(self, tracker_reader, tracker_writer, filename, server_address, window_size):
+    def __init__(self, tracker_reader, tracker_writer, filename, server_address, download_key, window_size):
         self._tracker_reader = tracker_reader
         self._tracker_writer = tracker_writer
         self._filename = filename
         self._server_address = server_address
+        self.download_key = download_key
         self._window_size = window_size
 
         self._file_chunk_info = None
@@ -72,8 +73,8 @@ class DownloadManager:
         """ send request chunkinfo to tracker, will raise exceptions """
         await write_message(self._tracker_writer, {
             'type': MessageType.REQUEST_FILE_LOCATION,
-            'filename': self._filename
-            'primary_key': 
+            # 'filename': self._filename
+            'primary_key': self.download_key
         })
 
         message = await read_message(self._tracker_reader)
@@ -135,12 +136,16 @@ class DownloadManager:
         self._to_download_chunk.sort(key=lambda num: len(self._file_chunk_info[num]))
 
     async def _send_request_chunk(self, chunknum):
+
         if len(self._file_chunk_info[chunknum]) == 0:
             raise DownloadIncompleteError(message='Download cannot proceed.', chunknum=chunknum)
+        
         fastest_peer = min(self._file_chunk_info[chunknum], key=lambda address: self._peers[address][2])
+
         try:
             await write_message(self._peers[fastest_peer][1], {
                 'type': MessageType.PEER_REQUEST_CHUNK,
+                'primary_key': self.download_key,
                 'filename': self._filename,
                 'chunknum': chunknum
             })
@@ -148,6 +153,7 @@ class DownloadManager:
             # if write task fails, the error will eventually reflect on the read task
             # we'll handle the exception there
             pass
+
         self._pending_chunknum[chunknum] = fastest_peer
 
     def get_progress(self):
@@ -195,7 +201,8 @@ class DownloadManager:
                     if Peer._HASH_FUNC(data).hexdigest() != digest:
                         await write_message(writer, {
                             'type': MessageType.PEER_REQUEST_CHUNK,
-                            'filename': self._filename,
+                            # 'filename': self._filename,
+                            'primary_key': self.download_key,
                             'chunknum': number
                         })
                         # since the task is done, schedule a new task to be run
@@ -210,7 +217,8 @@ class DownloadManager:
                     try:
                         await write_message(self._tracker_writer, {
                             'type': MessageType.REQUEST_CHUNK_REGISTER,
-                            'filename': self._filename,
+                            # 'filename': self._filename,
+                            'primary_key': self.download_key,
                             'chunknum': number
                         })
                     except (ConnectionError, RuntimeError):
@@ -267,7 +275,6 @@ class Peer(MessageServer):
         self._tracker_reader, self._tracker_writer = None, None
 
         # (remote filename) <-> (local filename)
-        # (local filename) <-> (remote filename)
         self._file_map = {}
 
         self._pending_publish = set()
@@ -338,7 +345,8 @@ class Peer(MessageServer):
             raise FileNotFoundError()
 
         remote_name = os.path.split(local_file)[1] if remote_name is None else remote_name
-        primary_key = [local_file, self._server_address]
+        # primary_key = (remote_name, tuple(self._server_address))
+        primary_key = remote_name +'_'+self._server_address[0] +':'+ str(self._server_address[1])
 
         if primary_key in self._pending_publish:
             raise InProgressError()
@@ -346,7 +354,7 @@ class Peer(MessageServer):
         if not await self.is_connected():
             raise TrackerNotConnectedError()
         
-        self._pending_publish.add(local_file)
+        self._pending_publish.add(primary_key)
 
         try:
             # send out the request packet
@@ -367,8 +375,7 @@ class Peer(MessageServer):
             is_success = message['result']
 
             if is_success:
-                # self._file_map[remote_name] = local_file
-                self._file_map[local_file] = remote_name
+                self._file_map[remote_name] = local_file
                 logger.info('File {} published on server with name {}'.format(local_file, remote_name))
 
             else:
@@ -379,7 +386,7 @@ class Peer(MessageServer):
             raise
         finally:
             # self._pending_publish.remove(remote_name)
-            self._pending_publish.remove(local_file)
+            self._pending_publish.remove(primary_key)
 
     async def list_file(self):
         if not await self.is_connected():
@@ -419,15 +426,18 @@ class Peer(MessageServer):
                 await self._tracker_writer.wait_closed()
             raise
 
-    async def download(self, file, destination, reporthook=None):
+    async def download(self, file, other_peer_address, destination, reporthook=None):
+
         # request for file list
         file_list = await self.list_file()
+        # download_key = [file, other_peer_address]
+        download_key= file+'_'+other_peer_address[0]+':'+str(other_peer_address[1])
 
-        if not file_list or file not in file_list:
+        if not file_list or download_key not in file_list: #Global file check
             raise FileNotFoundError()
 
         download_manager = DownloadManager(self._tracker_reader, self._tracker_writer, file,
-                                           server_address=self._server_address, window_size=30)
+                                           server_address=self._server_address, download_key=download_key, window_size=30)
 
         # update chunkinfo every UPDATE_FREQUENCY chunks
         update_frequency = 100
