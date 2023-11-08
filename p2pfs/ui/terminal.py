@@ -42,8 +42,8 @@ class TrackerTerminal(aiocmd.Cmd):
 
         file_list_dict = self._tracker.file_list()
         table = BeautifulTable(maxwidth=120)
-        table.set_style(beautifultable.STYLE_GRID)
         table.rows.separator = ''
+        table.set_style(beautifultable.STYLE_GRID)
 
         for filename, fileinfo in file_list_dict.items():
             if len(table.columns) == 0:
@@ -64,8 +64,8 @@ class TrackerTerminal(aiocmd.Cmd):
             
             file_list_dict = await self._tracker.discover((arg[0], int(arg[1])))
             table = BeautifulTable(maxwidth=120)
-            table.set_style(beautifultable.STYLE_GRID)
             table.rows.separator = ''
+            table.set_style(beautifultable.STYLE_GRID)
 
             for filename, fileinfo in file_list_dict.items():
                 if len(table.columns) == 0:
@@ -95,13 +95,13 @@ class TrackerTerminal(aiocmd.Cmd):
     async def do_list_chunkinfo(self, arg):
         # TODO: pretty print chunk info
         table = BeautifulTable()
-        table.set_style(beautifultable.STYLE_GRID)
         table.rows.separator = ''
+        table.set_style(beautifultable.STYLE_GRID)
 
         for filekey, chunkinfo in self._tracker.chunkinfo().items():
             if len(table.columns) == 0:
                 table.columns.header = ['File_key'] + ['Author_address'] + ['Chunk_list']
-            table.rows.append((filekey, chunkinfo.keys()) + tuple(chunkinfo.values()))
+            table.rows.append((filekey, list(chunkinfo.keys())[0]) + tuple(chunkinfo.values()))
 
         _, std_writer = await get_standard_streams()
         std_writer.write(str(table).encode('utf-8'))
@@ -174,8 +174,8 @@ class PeerTerminal(aiocmd.Cmd):
                   'try \'connect <tracker_ip> <tracker_port>\' to re-connect.')
         else:
             table = BeautifulTable(maxwidth=120)
-            table.set_style(beautifultable.STYLE_GRID)
             table.rows.separator = ''
+            table.set_style(beautifultable.STYLE_GRID)
 
             for filekey, fileinfo in file_list_dict.items():
                 if len(table.columns) == 0:
@@ -201,8 +201,8 @@ class PeerTerminal(aiocmd.Cmd):
                   'try \'connect <tracker_ip> <tracker_port>\' to re-connect.')
         else:
             table = BeautifulTable(maxwidth=120)
-            table.set_style(beautifultable.STYLE_GRID)
             table.rows.separator = ''
+            table.set_style(beautifultable.STYLE_GRID)
 
             for filekey, fileinfo in file_list_dict.items():
                 if len(table.columns) == 0:
