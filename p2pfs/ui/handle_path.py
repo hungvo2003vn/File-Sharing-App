@@ -28,3 +28,19 @@ def get_paths(input_str):
 # print("arg:", arg)
 # print("arg1:", arg1)
 
+def download_path(input_str):
+    
+    arg0, arg1, arg2, arg3 = None, None, None, None
+    if "-ip" not in input_str:
+        return False, arg0, arg1, arg2, arg3
+    
+    path, ip = input_str.split('-ip')
+    arg0, arg1 = get_paths(path.strip())
+    arg2, arg3 = get_paths(ip.strip())
+    
+    valid = True
+    args = [arg0, arg1, arg2, arg3]
+    if None in args: valid = False
+    
+    return valid, arg0, arg1, arg2, arg3
+
