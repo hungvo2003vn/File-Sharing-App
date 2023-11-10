@@ -21,7 +21,10 @@ class TrackerTerminal(aiocmd.Cmd):
         super().__init__()
 
     async def do_start(self, arg):
+
+        arg = arg.strip()
         arg = arg.split(' ')
+
         if len(arg) < 2:
             print('Not enough argument, start <host> <port>')
         else:
@@ -36,7 +39,28 @@ class TrackerTerminal(aiocmd.Cmd):
                     print('Cannot bind on address {}:{}.'.format(arg[0], arg[1]))
                 else:
                     raise
-        
+    
+    async def do_ping(self, arg):
+
+        arg = arg.strip()
+        arg = arg.split(' ')
+
+        if len(arg) < 2:
+            print('Not enough argument, ping <host> <port>')
+        else:
+            try:
+                target_address = (arg[0], int(arg[1]))
+                end_packet = await self._tracker.ping(target_address)
+                end_packet_in_ms = round(end_packet*1000, 3)
+                print('Received packet from {} in {}ms'.format( target_address,  end_packet_in_ms))
+
+            except ConnectionRefusedError:
+                print('Hostname with address {} refused to connect!'.format(target_address))
+            except (ConnectionError, RuntimeError):
+                print('Error while sending packet to hostname {}'. format(target_address))
+            except AssertionError:
+                print('Error while receiving packet from hostname {}'. format(target_address))
+                
 
     async def do_list_files(self, arg):
 
@@ -150,19 +174,22 @@ class PeerTerminal(aiocmd.Cmd):
             print('Delay {} successfully set.'.format(arg))
 
     async def do_connect(self, arg):
+
+        arg = arg.strip()
         arg = arg.split(' ')
         if len(arg) < 2:
             print('More arguments required! Usage: connect <address> <port>')
-        try:
-            await self._peer.connect((arg[0], int(arg[1])))
-        except AlreadyConnectedError as e:
-            print('Peer already connected to {}.'.format(e.address))
-        except ConnectionRefusedError:
-            print('Cannot connect to tracker.')
-        except (ConnectionError, RuntimeError, IncompleteReadError, AssertionError):
-            print('Error occurred during communications with tracker.')
         else:
-            print('Successfully connected!')
+            try:
+                await self._peer.connect((arg[0], int(arg[1])))
+            except AlreadyConnectedError as e:
+                print('Peer already connected to {}.'.format(e.address))
+            except ConnectionRefusedError:
+                print('Cannot connect to tracker.')
+            except (ConnectionError, RuntimeError, IncompleteReadError, AssertionError):
+                print('Error occurred during communications with tracker.')
+            else:
+                print('Successfully connected!')
 
     async def do_list_files(self, arg):
         try:
@@ -189,6 +216,7 @@ class PeerTerminal(aiocmd.Cmd):
     
     async def do_discover(self, arg):
 
+        arg = arg.strip()
         arg = arg.split(' ')
         if len(arg) < 2:
             print('More arguments required! Usage: discover <address> <port>')
@@ -214,12 +242,13 @@ class PeerTerminal(aiocmd.Cmd):
             std_writer.write('\n'.encode('utf-8'))
             await std_writer.drain()
 
-    async def do_download(self, arg):
+    async def do_fetch(self, arg):
         # filename, destination, peer_address, *_ = arg.split(' ')
 
+        arg = arg.strip()
         valid, filename, destination, ip, port = download_path(arg)
         if not valid:
-            print('More arguments required! Usage: download <filename> <destination> -ip <address> <port>')
+            print('More arguments required! Usage: fetch <filename> <destination> -ip <address> <port>')
 
         else:
             peer_address = [ip, port]
@@ -234,7 +263,7 @@ class PeerTerminal(aiocmd.Cmd):
                         t.total = tsize
                     t.update((chunknum - last_chunk[0]) * chunksize)
                     last_chunk[0] = chunknum
-
+                    
                 return update_to #Return function
             
             try:
@@ -247,6 +276,8 @@ class PeerTerminal(aiocmd.Cmd):
                 print('Tracker not connected, cannot pull initial chunk information.')
             except FileNotFoundError:
                 print('File {} doesn\'t exist, please check filename and try again.'.format(filename))
+            except FileExistsError:
+                print('File {} existed in your respitory, please choose another filename and try again.'.format(filename))
             except (IncompleteReadError, ConnectionError, RuntimeError):
                 print('Error occurred during transmission.')
             except DownloadIncompleteError as e:

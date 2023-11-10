@@ -26,6 +26,7 @@ class MessageType(Enum):
     PEER_REPLY_CHUNK = auto()
 
     PEER_PING_PONG = auto()
+    PING_PONG = auto()
 
 
 def _message_log(message):

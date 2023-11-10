@@ -1,8 +1,10 @@
 import logging
 import json
 import asyncio
+import math, time
 from p2pfs.core.server import MessageServer
 from p2pfs.core.message import MessageType, read_message, write_message
+from p2pfs.core.exceptions import *
 logger = logging.getLogger(__name__)
 
 
@@ -40,10 +42,60 @@ class Tracker(MessageServer):
     def address(self):
         return self._server_address
     
-    # def ping(self, hostname):
+    async def is_connected(self, writer, reader):
 
+        if not writer:
+            return False
+        # target gracefully closed connection
+        can_read = not reader.at_eof()
+        can_write = True
+        # target disconnects suddenly
+        try:
+            await writer.drain()
+        except ConnectionError:
 
+            can_write = False
+            if not writer.is_closing():
+                writer.close()
 
+        is_connected = can_read and can_write
+
+        return is_connected
+    
+    async def ping(self, hostname):
+
+        if self._server_address is not None and \
+            self._server_address[0] == hostname[0] and self._server_address[1] == hostname[1] :
+            raise ConnectionRefusedError
+
+        reader, writer = None, None
+        #Open connection
+        try:
+            reader, writer = await asyncio.open_connection(hostname[0], hostname[1])
+            start_packet = time.time()
+        except ConnectionRefusedError:
+            pass
+        
+        # Send PEER_PING_PING packet
+        try:
+            await write_message(writer,{
+                'type': MessageType.PING_PONG,
+                'peer_address': hostname
+            })
+        except (asyncio.IncompleteReadError, ConnectionError, RuntimeError):
+            pass
+        
+        # Not connected error
+        if not await self.is_connected(writer, reader):
+            raise TrackerNotConnectedError()
+
+        # Receive ping packet
+        message = await read_message(reader)
+        assert MessageType(message['type']) == MessageType.PING_PONG
+        end_packet = time.time() - start_packet
+
+        return end_packet
+        
     def _reset(self):
         self._peers = {}
         self._file_list = {}

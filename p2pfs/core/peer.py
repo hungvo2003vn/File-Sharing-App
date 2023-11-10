@@ -201,7 +201,7 @@ class DownloadManager:
                     if Peer._HASH_FUNC(data).hexdigest() != digest:
                         await write_message(writer, {
                             'type': MessageType.PEER_REQUEST_CHUNK,
-                            # 'filename': self._filename,
+                            'filename': self._filename,
                             'primary_key': self.download_key,
                             'chunknum': number
                         })
@@ -435,6 +435,10 @@ class Peer(MessageServer):
 
         if not file_list or download_key not in file_list: #Global file check
             raise FileNotFoundError()
+        
+        if other_peer_address[0] == self._server_address[0] \
+            and int(other_peer_address[1]) == self._server_address[1]:
+            raise FileExistsError()
 
         download_manager = DownloadManager(self._tracker_reader, self._tracker_writer, file,
                                            server_address=self._server_address, download_key=download_key, window_size=30)
@@ -497,6 +501,12 @@ class Peer(MessageServer):
 
                 elif message_type == MessageType.PEER_PING_PONG:
                     await write_message(writer, message)
+
+                elif message_type == MessageType.PING_PONG:
+                    await write_message(writer, {
+                        'type': MessageType.PING_PONG,
+                        'response': True
+                    })
                 else:
                     logger.error('Undefined message: {}'.format(message))
 
