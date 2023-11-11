@@ -1,4 +1,5 @@
 import asyncio
+from p2pfs.ui.services import get_hostname
 import sys
 import argparse
 import logging
@@ -24,17 +25,22 @@ def main():
     obj = None
     terminal = None
     if results.option[0] == 'tracker':
+
         obj = Tracker()
         terminal = TrackerTerminal(obj)
+
     elif results.option[0] == 'peer':
+
         obj = Peer()
-        loop.run_until_complete(obj.start(('127.0.0.1', 0)))
+        loop.run_until_complete(obj.start((get_hostname(), 0)))
         terminal = PeerTerminal(obj)
+
     else:
         logging.error('Option must either be \'tracker\' or \'peer\'')
         exit(0)
     try:
         loop.run_until_complete(terminal.cmdloop())
+
     except (KeyboardInterrupt, EOFError):
         pass
     except Exception as e:

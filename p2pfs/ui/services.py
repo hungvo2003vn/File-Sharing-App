@@ -44,3 +44,22 @@ def download_path(input_str):
     
     return valid, arg0, arg1, arg2, arg3
 
+
+
+import socket
+
+def get_hostname():
+    def is_connected():
+        try:
+            # Check if there is an active internet connection by resolving a known host
+            socket.create_connection(("www.google.com", 80), timeout=1)
+            return True
+        except OSError:
+            pass
+        return False
+
+    if is_connected():
+        return socket.gethostbyname(socket.gethostname())
+    else:
+        return '127.0.0.1' # Localhost
+

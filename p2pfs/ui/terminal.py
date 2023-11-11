@@ -1,4 +1,4 @@
-import os
+import os, socket
 from asyncio import IncompleteReadError
 from beautifultable import BeautifulTable
 import beautifultable
@@ -8,7 +8,7 @@ from p2pfs.core.exceptions import *
 import p2pfs.ui.aiocmd as aiocmd
 from aioconsole.stream import get_standard_streams
 import logging
-from p2pfs.ui.handle_path import get_paths, download_path
+from p2pfs.ui.services import get_paths, download_path, get_hostname
 
 
 class TrackerTerminal(aiocmd.Cmd):
@@ -24,9 +24,16 @@ class TrackerTerminal(aiocmd.Cmd):
 
         arg = arg.strip()
         arg = arg.split(' ')
-
+        
         if len(arg) < 2:
             print('Not enough argument, start <host> <port>')
+            
+            hostname = get_hostname()
+            if hostname == '127.0.0.1':
+                print('Recommend running on localhost 127.0.0.1')
+            else:
+                print('Recommend running on ip {} or localhost 127.0.0.1'.format(hostname))
+
         else:
             try:
                 await self._tracker.start((arg[0], int(arg[1])))
