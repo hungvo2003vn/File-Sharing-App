@@ -347,7 +347,7 @@ class PeerController():
         fname = arg['fname']
 
         try:
-            await self._peer.do_publish(lname, fname)
+            await self._peer.publish(lname, fname)
             return jsonify({'status': 'success', 'message': f'File {fname} successfully published on tracker.'})
         except FileNotFoundError:
             return jsonify({'status': 'error', 'message': f'File {fname} doesn\'t exist.'})
