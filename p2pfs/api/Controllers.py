@@ -12,7 +12,6 @@ class TrackerController():
     def __init__(self, tracker):
         assert isinstance(tracker, Tracker)
         self._tracker = tracker
-        super().__init__()
 
     async def do_start(self, arg = {}): #POST
 
@@ -205,7 +204,6 @@ class PeerController():
     def __init__(self, peer):
         assert isinstance(peer, Peer)
         self._peer = peer
-        super().__init__()
     
     async def do_connect(self, arg={}): #POST
 

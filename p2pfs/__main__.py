@@ -22,8 +22,12 @@ app = Flask(__name__)
 obj = None
 controller = None
 terminal = None
+loop = None
 
 def setup1():
+
+    global obj, terminal, loop
+    
     arg_parser = argparse.ArgumentParser(description=__doc__)
     arg_parser.add_argument('option', metavar='OPTION', type=str, nargs=1)
     results = arg_parser.parse_args()
@@ -38,7 +42,7 @@ def setup1():
     elif results.option[0] == 'peer':
 
         obj = Peer()
-        loop.run_until_complete(obj.start((get_hostname(), 0)))
+        loop.run_until_complete(obj.start((get_hostname(), 30001)))
         terminal = PeerTerminal(obj)
 
     else:
@@ -56,11 +60,15 @@ def setup1():
         loop.close()
 
 #######################################################################################
-async def setup2():
+def setup2():
+
+    global obj, controller, loop
 
     arg_parser = argparse.ArgumentParser(description=__doc__)
     arg_parser.add_argument('option', metavar='OPTION', type=str, nargs=1)
     results = arg_parser.parse_args()
+
+    loop = asyncio.get_event_loop()
 
     if results.option[0] == 'tracker':
 
@@ -70,18 +78,23 @@ async def setup2():
     elif results.option[0] == 'peer':
 
         obj = Peer()
-        await obj.start((get_hostname(), 0))
+        # await obj.start((get_hostname(), 0))
+        loop.run_until_complete(obj.start((get_hostname(), 0)))
         controller = PeerController(obj)
 
     else:
         logging.error('Option must either be \'tracker\' or \'peer\'')
         exit(0)
+    
+    loop.run_until_complete(app.run(debug=True, port=0))
+    
+    
 
 @app.route('/<action>', methods=['POST', 'GET'])
 def perform_action(action):
 
     arg = request.json
-    arg = json.loads(arg)
+    # arg = json.loads(arg)
     try:
 
         result = asyncio.run(getattr(controller, f'do_{action}')(arg))
@@ -93,13 +106,14 @@ def perform_action(action):
             'message': str(e)
         })
 
-def main(app_options = False, port = 8000):
+def main(app_options = False):
 
     if not app_options:
         setup1()
     else:
-        asyncio.run(setup2())
-        app.run(debug=True, port=port)
+        setup2()
+        # asyncio.run(setup2())
+        # app.run(debug=True, port=0)
 
 if __name__ == '__main__':
     main(app_options=True)
