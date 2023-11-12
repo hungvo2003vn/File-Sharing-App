@@ -112,7 +112,7 @@ class TrackerController():
             })
                 
 
-    async def do_list_files(self): #GET
+    async def do_list_files(self, arg={}): #GET
 
         try:
             file_list_dict = self._tracker.file_list()
@@ -181,7 +181,7 @@ class TrackerController():
                 'message': str(e)
             })
 
-    async def do_exit(self, arg): #POST
+    async def do_exit(self, arg={}): #POST
 
         try:
             await self._tracker.stop()
