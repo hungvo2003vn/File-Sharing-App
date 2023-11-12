@@ -48,18 +48,29 @@ def download_path(input_str):
 
 import socket
 
+# def get_hostname():
+#     def is_connected():
+#         try:
+#             # Check if there is an active internet connection by resolving a known host
+#             socket.create_connection(("www.google.com", 80), timeout=1)
+#             return True
+#         except OSError:
+#             pass
+#         return False
+
+#     if is_connected():
+#         print('Run')
+#         return socket.gethostbyname(socket.gethostname())
+#     else:
+#         return '127.0.0.1' # Localhost
+    
 def get_hostname():
-    def is_connected():
-        try:
-            # Check if there is an active internet connection by resolving a known host
-            socket.create_connection(("www.google.com", 80), timeout=1)
-            return True
-        except OSError:
-            pass
-        return False
 
-    if is_connected():
-        return socket.gethostbyname(socket.gethostname())
-    else:
-        return '127.0.0.1' # Localhost
-
+    try:
+        # Use a UDP connection to a public DNS server to determine the local IP address
+        sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+        sock.connect(('www.google.com', 80))  # Connect to Google's public DNS server
+        local_ip = sock.getsockname()[0]
+        return local_ip
+    except socket.error:
+        return '127.0.0.1'  # Return loopback address if connection fails
