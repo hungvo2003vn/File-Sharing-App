@@ -62,8 +62,11 @@ def setup1():
 
 #######################################################################################
 from aiohttp import web
+from aiohttp_middlewares import cors_middleware
 
-app_aio = web.Application()
+app_aio = web.Application(middlewares=[cors_middleware(allow_all=True)])
+
+# app_aio = web.Application()
 # Create a Flask app for the application context
 flask_app = Flask(__name__)
 
