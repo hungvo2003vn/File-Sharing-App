@@ -52,3 +52,9 @@ runo.py
 
 # test file
 *.test
+
+# Ignore node_modules
+node_modules
+
+# ENVIRONMENT FILE
+*.env
