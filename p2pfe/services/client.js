@@ -435,7 +435,7 @@ async function fetchFetchData(filename, authorIP, authorPort) {
             },
             body: JSON.stringify({
                 "fname": filename,
-                "destination": `p2pfs\\repo\\${filename}`,
+                "destination": `p2pfs//repo//${filename}`,
                 "peer_ip": authorIP,
                 "peer_port": authorPort
             })
