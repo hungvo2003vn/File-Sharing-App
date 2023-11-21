@@ -430,7 +430,6 @@ class Peer(MessageServer):
 
         # request for file list
         file_list = await self.list_file()
-        # download_key = [file, other_peer_address]
         download_key= file+'_'+other_peer_address[0]+':'+str(other_peer_address[1])
 
         if not file_list or download_key not in file_list: #Global file check
@@ -438,6 +437,9 @@ class Peer(MessageServer):
         
         if other_peer_address[0] == self._server_address[0] \
             and int(other_peer_address[1]) == self._server_address[1]:
+            raise FileExistsError()
+        
+        if os.path.exists(destination):
             raise FileExistsError()
 
         download_manager = DownloadManager(self._tracker_reader, self._tracker_writer, file,
@@ -448,7 +450,7 @@ class Peer(MessageServer):
 
         try:
             with open(destination + '.temp', 'wb') as dest_file:
-                self._file_map[file] = destination
+                # self._file_map[file] = destination
                 async for chunknum, data in download_manager.download():
                     dest_file.seek(chunknum * Peer._CHUNK_SIZE, 0)
                     dest_file.write(data)
